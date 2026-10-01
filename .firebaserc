@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "open-for-product"
+  },
+  "targets": {
+    "open-for-product": {
+      "hosting": {
+        "marketing": ["openforproduct-marketing"]
+      }
+    }
+  }
+}
