@@ -12,6 +12,8 @@ export interface FeaturedProject {
   category?: string;
   collaborators?: string;
   photoUrl?: string | null;
+  project_type?: "public" | "private" | "personal";
+  status?: "draft" | "published" | "archived";
   tags?: Array<{ id: string; display: string; isCategory?: boolean }>;
   contributionNeeds?: string[];
   memberCount?: number;
@@ -30,6 +32,8 @@ export const FALLBACK_PROJECTS: FeaturedProject[] = [
     category: "Funding",
     collaborators: "Early contributors welcome",
     visual: "fundry",
+    project_type: "public",
+    status: "published",
     urlPath: "/projects",
   },
   {
@@ -41,6 +45,8 @@ export const FALLBACK_PROJECTS: FeaturedProject[] = [
     category: "Publishing",
     collaborators: "Writers, readers, facilitators",
     visual: "book",
+    project_type: "public",
+    status: "published",
     urlPath: "/projects",
   },
   {
@@ -52,9 +58,39 @@ export const FALLBACK_PROJECTS: FeaturedProject[] = [
     category: "Technology",
     collaborators: "Testers and product thinkers",
     visual: "queen",
+    project_type: "public",
+    status: "published",
     urlPath: "/projects",
   },
 ];
+
+function ProjectSkeletonCard() {
+  return (
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-[#dfd5c5] bg-[#fffaf2] shadow-[0_12px_36px_rgba(62,49,31,0.07)]">
+      {/* Visual box placeholder */}
+      <div className="h-44 w-full bg-[#ebdccb] animate-pulse" />
+
+      <div className="flex flex-1 flex-col p-5">
+        {/* Title placeholder */}
+        <div className="h-7 w-3/5 rounded-md bg-[#e3d3be] animate-pulse" />
+
+        {/* Tagline placeholder */}
+        <div className="mt-3 space-y-2">
+          <div className="h-3.5 w-full rounded bg-[#ebd7c3] animate-pulse" />
+          <div className="h-3.5 w-4/5 rounded bg-[#ebd7c3] animate-pulse" />
+        </div>
+
+        {/* Footer placeholder */}
+        <div className="mt-auto pt-6">
+          <div className="flex items-center justify-between gap-3 border-t border-[#dfd5c5]/50 pt-3">
+            <div className="h-3.5 w-24 rounded bg-[#ebd7c3] animate-pulse" />
+            <div className="h-5 w-16 rounded-full bg-[#ebd7c3] animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function ProjectVisual({ project }: { project: FeaturedProject }) {
   if (project.photoUrl) {
@@ -117,58 +153,84 @@ function ProjectVisual({ project }: { project: FeaturedProject }) {
 }
 
 export function FeaturedProjectsWidget() {
-  const [projects, setProjects] = useState<FeaturedProject[]>(FALLBACK_PROJECTS);
+  const [projects, setProjects] = useState<FeaturedProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     let isCurrent = true;
 
-    async function fetchFeatured() {
-      try {
-        const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
-        const endpoint = isLocal
-          ? "http://localhost:3001/api/public/featured-projects"
-          : "https://app.openforproduct.com/api/public/featured-projects";
+    async function loadFeaturedProjects() {
+      // Build candidate endpoints to try in order:
+      const candidateEndpoints: string[] = [];
 
-        const res = await fetch(endpoint, {
-          headers: { Accept: "application/json" },
-        });
+      if (process.env.NEXT_PUBLIC_APP_URL) {
+        candidateEndpoints.push(`${process.env.NEXT_PUBLIC_APP_URL}/api/public/featured-projects`);
+      }
 
-        if (!res.ok) return;
-        const data = await res.json();
+      if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+        // If marketing is running on 3001, app is on 3000. If marketing is on 3000, app is on 3001.
+        const currentPort = window.location.port;
+        const targetAppPort = currentPort === "3001" ? "3000" : "3001";
+        candidateEndpoints.push(`http://localhost:${targetAppPort}/api/public/featured-projects`);
+        candidateEndpoints.push(`http://localhost:${currentPort === "3001" ? "3001" : "3000"}/api/public/featured-projects`);
+      }
 
-        if (isCurrent && data.success && Array.isArray(data.projects)) {
-          const apiProjects: FeaturedProject[] = data.projects;
-          
-          if (apiProjects.length === 0) {
-            // Keep default fallback projects
-            return;
-          }
+      // Always include production endpoint as fallback
+      candidateEndpoints.push("https://app.openforproduct.com/api/public/featured-projects");
 
-          // If we have fewer than 3 featured projects, fill remaining slots with fallback projects
-          let combined: FeaturedProject[] = [...apiProjects];
-          if (combined.length < 3) {
-            const existingNames = new Set(combined.map(p => (p.name || p.title || "").toLowerCase()));
-            for (const fb of FALLBACK_PROJECTS) {
-              if (!existingNames.has(fb.title.toLowerCase())) {
-                combined.push(fb);
-                existingNames.add(fb.title.toLowerCase());
-                if (combined.length >= 3) break;
+      for (const endpoint of candidateEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            headers: { Accept: "application/json" },
+          });
+
+          if (!res.ok) continue;
+          const data = await res.json();
+
+          if (isCurrent && data.success && Array.isArray(data.projects)) {
+            // Privacy guard: strictly reject any non-public or non-published projects
+            const safeProjects: FeaturedProject[] = data.projects.filter(
+              (p: any) =>
+                (!p.project_type || p.project_type === "public") &&
+                p.status !== "draft" &&
+                p.status !== "archived"
+            );
+
+            if (safeProjects.length > 0) {
+              let combined: FeaturedProject[] = [...safeProjects];
+              if (combined.length < 3) {
+                const existingNames = new Set(
+                  combined.map((p) => (p.name || p.title || "").toLowerCase())
+                );
+                for (const fb of FALLBACK_PROJECTS) {
+                  if (!existingNames.has(fb.title.toLowerCase())) {
+                    combined.push(fb);
+                    existingNames.add(fb.title.toLowerCase());
+                    if (combined.length >= 3) break;
+                  }
+                }
               }
+              setProjects(combined);
+              setIsLoading(false);
+              return;
             }
           }
-
-          setProjects(combined);
+        } catch {
+          // If this endpoint fails, try the next candidate
+          continue;
         }
-      } catch (err) {
-        console.debug("API fetch fallback active:", err);
+      }
+
+      // If all endpoints failed, returned no projects, or had an error -> fill fallback content
+      if (isCurrent) {
+        setProjects(FALLBACK_PROJECTS);
+        setIsLoading(false);
       }
     }
 
-    fetchFeatured();
+    loadFeaturedProjects();
 
     return () => {
       isCurrent = false;
@@ -195,66 +257,78 @@ export function FeaturedProjectsWidget() {
 
   return (
     <div className="flex flex-col gap-6" suppressHydrationWarning>
-      {/* 3-Column Grid */}
+      {/* 3-Column Grid: Show skeletons while loading, then transition to content */}
       <div className="grid gap-6 md:grid-cols-3">
-        {currentProjects.map((project) => {
-          const projectTitle = project.title || project.name || "Untitled Project";
-          const projectDescription = project.description || project.tagline || "";
-          const categoryText = project.category || (project.tags && project.tags[0]?.display) || "Community";
-          const collaboratorsText = project.collaborators || 
-            (Array.isArray(project.contributionNeeds) && project.contributionNeeds.length > 0
-              ? project.contributionNeeds[0]
-              : `${project.memberCount || 1} collaborators`);
+        {isLoading ? (
+          <>
+            <ProjectSkeletonCard />
+            <ProjectSkeletonCard />
+            <ProjectSkeletonCard />
+          </>
+        ) : (
+          currentProjects.map((project) => {
+            const projectTitle = project.title || project.name || "Untitled Project";
+            const projectDescription = project.description || project.tagline || "";
+            const categoryText = project.category || (project.tags && project.tags[0]?.display) || "Community";
+            const collaboratorsText =
+              project.collaborators ||
+              (Array.isArray(project.contributionNeeds) && project.contributionNeeds.length > 0
+                ? project.contributionNeeds[0]
+                : `${project.memberCount || 1} collaborators`);
 
-          const appUrl = project.urlPath
-            ? `https://app.openforproduct.com${project.urlPath}`
-            : `https://app.openforproduct.com/projects`;
+            const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
+            const appPort = isLocal ? (window.location.port === "3001" ? "3000" : "3001") : "";
+            const appBase = isLocal ? `http://localhost:${appPort}` : `https://app.openforproduct.com`;
+            const appUrl = project.urlPath
+              ? `${appBase}${project.urlPath}`
+              : `${appBase}/projects`;
 
-          return (
-            <article
-              key={project.id || projectTitle}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#dfd5c5] bg-[#fffaf2] shadow-[0_12px_36px_rgba(62,49,31,0.07)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-            >
-              {/* Entire card links to app */}
-              <a
-                href={appUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute inset-0 z-10 focus:outline-none"
-                aria-label={`View project ${projectTitle}`}
-              />
+            return (
+              <article
+                key={project.id || projectTitle}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#dfd5c5] bg-[#fffaf2] shadow-[0_12px_36px_rgba(62,49,31,0.07)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                {/* Entire card links to app */}
+                <a
+                  href={appUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 z-10 focus:outline-none"
+                  aria-label={`View project ${projectTitle}`}
+                />
 
-              <div className="relative">
-                <ProjectVisual project={project} />
-              </div>
+                <div className="relative">
+                  <ProjectVisual project={project} />
+                </div>
 
-              <div className="flex flex-1 flex-col p-5">
-                <h3 className="font-serif text-2xl group-hover:text-[#b8512c] transition-colors">
-                  {projectTitle}
-                </h3>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="font-serif text-2xl group-hover:text-[#b8512c] transition-colors">
+                    {projectTitle}
+                  </h3>
 
-                <p className="mt-3 text-sm leading-6 text-[#5c584d] line-clamp-3">
-                  {projectDescription}
-                </p>
+                  <p className="mt-3 text-sm leading-6 text-[#5c584d] line-clamp-3">
+                    {projectDescription}
+                  </p>
 
-                <div className="mt-auto pt-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <span className="inline-flex items-center gap-1 text-[#4f5f49]">
-                      <Users className="h-3.5 w-3.5" /> {collaboratorsText}
-                    </span>
-                    <span className="rounded-full bg-[#ebe1cb] px-3 py-1 text-[#6a5c3f]">
-                      {categoryText}
-                    </span>
+                  <div className="mt-auto pt-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <span className="inline-flex items-center gap-1 text-[#4f5f49]">
+                        <Users className="h-3.5 w-3.5" /> {collaboratorsText}
+                      </span>
+                      <span className="rounded-full bg-[#ebe1cb] px-3 py-1 text-[#6a5c3f]">
+                        {categoryText}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          );
-        })}
+              </article>
+            );
+          })
+        )}
       </div>
 
-      {/* Pagination & Cycle Controls (only visible when mounted and more than 3 projects exist) */}
-      {mounted && totalPages > 1 && (
+      {/* Pagination & Cycle Controls (visible only after loading if more than 3 projects exist) */}
+      {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-[#dfd5c5] pt-4 text-xs text-[#7a7658]">
           <span>
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, projects.length)} of {projects.length} projects
@@ -264,7 +338,7 @@ export function FeaturedProjectsWidget() {
             <button
               type="button"
               onClick={handleCycle}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#dfd5c5] bg-white/70 px-2.5 py-1 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#dfd5c5] bg-white/70 px-2.5 py-1 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition active:scale-95 cursor-pointer"
               title="Cycle to next projects"
               aria-label="Cycle projects"
             >
@@ -276,7 +350,7 @@ export function FeaturedProjectsWidget() {
               <button
                 type="button"
                 onClick={handlePrev}
-                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#dfd5c5] bg-white/70 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#dfd5c5] bg-white/70 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition cursor-pointer"
                 aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -287,7 +361,7 @@ export function FeaturedProjectsWidget() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#dfd5c5] bg-white/70 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#dfd5c5] bg-white/70 text-[#5c584d] hover:bg-white hover:text-[#25251f] transition cursor-pointer"
                 aria-label="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
