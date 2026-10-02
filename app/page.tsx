@@ -2,20 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight, Check, CircleDollarSign, Compass,
-  Heart, Leaf, Shield, Sparkles, Sprout, Users,
+  Heart, Leaf, Sprout, Users,
 } from "lucide-react";
 import { ProjectMatchForm } from "@/components/project-match-form";
 import { Logo } from "@/components/logo";
+import { FeaturedProjectsWidget } from "@/components/featured-projects-widget";
 
 export const metadata: Metadata = {
   title: "Open for Product — Build something that matters. Together.",
 };
-
-const projects = [
-  { title: "Fundry", description: "A simpler way to move complex projects forward through transparent, contributor-directed funding.", category: "Funding", collaborators: "Early contributors welcome", visual: "fundry" },
-  { title: "Open Book", description: "A participatory publishing experiment where communities help shape books one chapter at a time.", category: "Publishing", collaborators: "Writers, readers, facilitators", visual: "book" },
-  { title: "Session Queen", description: "A context-preserving workspace for people who think, research, and build across many tools.", category: "Technology", collaborators: "Testers and product thinkers", visual: "queen" },
-];
 
 const principles = [
   { icon: Users, title: "Contribute what you can", copy: "Your time, skills, perspective, and energy are welcome. No rigid commitments required." },
@@ -63,71 +58,62 @@ function HeroLandscape() {
   );
 }
 
-function ProjectVisual({ type }: { type: string }) {
-  if (type === "fundry") return (
-    <div className="relative h-44 overflow-hidden bg-[#d8e1d4]">
-      <div className="absolute inset-x-0 bottom-0 h-20 bg-[#6e7755]" />
-      <div className="absolute bottom-12 left-10 h-20 w-2 bg-[#f7f2e8]" />
-      <div className="absolute bottom-16 left-5 h-px w-12 rotate-[22deg] bg-[#f7f2e8]" />
-      <div className="absolute bottom-16 left-5 h-px w-12 -rotate-[22deg] bg-[#f7f2e8]" />
-      <div className="absolute bottom-12 left-28 h-24 w-2 bg-[#f7f2e8]" />
-    </div>
-  );
-  if (type === "book") return (
-    <div className="grid h-44 grid-cols-3 grid-rows-2 overflow-hidden bg-[#e8d1a8]">
-      <div className="bg-[#2f5a56]" /><div className="bg-[#d6ae69]" /><div className="bg-[#ede0c5]" />
-      <div className="bg-[#b9552d]" /><div className="bg-[#63705c]" /><div className="bg-[#d9c694]" />
-    </div>
-  );
-  return (
-    <div className="relative h-44 overflow-hidden bg-[#18272f]">
-      <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#d4c178] shadow-[0_0_40px_rgba(212,193,120,0.35)]" />
-      <div className="absolute left-1/2 top-1/2 h-7 w-44 -translate-x-1/2 -translate-y-1/2 rotate-[-12deg] rounded-[50%] border-4 border-[#b88958]" />
-      <Sparkles className="absolute left-8 top-8 h-4 w-4 text-[#f5e6aa]" />
-      <Sparkles className="absolute right-12 top-6 h-3 w-3 text-[#f5e6aa]" />
-      <Sparkles className="absolute bottom-8 left-16 h-3 w-3 text-[#f5e6aa]" />
-    </div>
-  );
-}
-
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#f6f0e5] text-[#292820]">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <Link href="/" className="rounded-sm focus:outline-none focus:ring-2 focus:ring-[#b8512c] focus:ring-offset-4">
-          <BrandMark />
-        </Link>
-        <nav className="hidden gap-6 text-sm font-medium text-[#555146] md:flex" aria-label="Main navigation">
+      <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
+        <BrandMark />
+        <nav className="hidden items-center gap-8 text-sm font-medium text-[#555146] md:flex" aria-label="Main navigation">
+          <a href="https://app.openforproduct.com/projects" className="transition hover:text-[#b8512c]">Projects</a>
+          <Link href="/about" className="transition hover:text-[#b8512c]">About</Link>
           <Link href="/how-it-works" className="transition hover:text-[#b8512c]">How it works</Link>
           <Link href="/blog" className="transition hover:text-[#b8512c]">Blog</Link>
           <Link href="/podcast" className="transition hover:text-[#b8512c]">Podcast</Link>
-          <Link href="/contact" className="transition hover:text-[#b8512c]">Contact</Link>
         </nav>
-        <a href="https://app.openforproduct.com" className="rounded-xl bg-[#b8512c] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#9e4323]">
-          Open the app
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://app.openforproduct.com/login"
+            className="rounded-full border border-[#dfd5c5] bg-[#fffaf2] px-4 py-2 text-sm font-semibold text-[#292820] shadow-sm transition hover:bg-white"
+          >
+            Log in
+          </a>
+          <a
+            href="https://app.openforproduct.com/signup"
+            className="rounded-full bg-[#b8512c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#a14422]"
+          >
+            Join
+          </a>
+        </div>
       </header>
 
       <main>
-        <section className="mx-auto grid w-full max-w-7xl gap-12 px-6 pb-16 pt-10 lg:grid-cols-[0.95fr_1.05fr] lg:px-10 lg:pb-24 lg:pt-16">
-          <div className="flex flex-col justify-center">
-            <p className="mb-5 text-sm font-semibold uppercase tracking-[0.18em] text-[#7a7658]">A different way into meaningful work</p>
-            <h1 className="max-w-3xl font-serif text-5xl leading-[0.98] tracking-[-0.04em] sm:text-6xl lg:text-7xl">
-              Build something <span className="italic text-[#b8512c]">that matters.</span> Together.
+        <section className="mx-auto grid max-w-7xl gap-12 px-6 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-10 lg:py-20">
+          <div>
+            <span className="inline-flex rounded-full bg-[#ebe1cb] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6a43]">
+              A different kind of creative space
+            </span>
+            <h1 className="mt-6 font-serif text-5xl leading-[1.08] tracking-[-0.03em] sm:text-6xl lg:text-7xl">
+              Build something that matters. <span className="italic text-[#b8512c]">Together.</span>
             </h1>
-            <p className="mt-7 max-w-xl text-lg leading-8 text-[#4f4b40]">
-              Open for Product connects people to meaningful projects where they can contribute what they can, when they can, and receive fair credit for the value they help create.
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[#5c584d]">
+              Open for Product is where creators, thinkers, and builders come together to shape ideas into reality—openly, collaboratively, and sustainably.
             </p>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <Link href="#match" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#b8512c] px-6 py-4 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#9e4323]">
-                Help me find a project <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="#support" className="inline-flex items-center justify-center rounded-xl border border-[#b8512c] px-6 py-4 font-semibold text-[#a84827] transition hover:bg-[#fffaf2]">
-                Support Open for Product
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <a
+                href="#match"
+                className="inline-flex items-center gap-2 rounded-full bg-[#b8512c] px-6 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-[#a14422]"
+              >
+                Find your way in <ArrowRight className="h-4 w-4" />
+              </a>
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-2 rounded-full border border-[#dfd5c5] bg-[#fffaf2] px-6 py-3.5 text-base font-semibold text-[#292820] transition hover:bg-white"
+              >
+                Why we exist
               </Link>
             </div>
-            <p className="mt-5 max-w-sm pl-3 font-serif text-base italic leading-6 text-[#4d493e]">
-              Answer a few questions. We'll introduce you to projects you might genuinely enjoy.
+            <p className="mt-8 text-sm text-[#7a7658]">
+              No pitch decks. No closed doors. Just real work, shared openly.
             </p>
           </div>
           <HeroLandscape />
@@ -154,33 +140,21 @@ export default function HomePage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
-          <div className="grid gap-10 lg:grid-cols-[0.65fr_1.35fr]">
+          <div className="grid gap-10 lg:grid-cols-[0.5fr_1.5fr]">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#7a7658]">Happening now</p>
               <h2 className="mt-3 font-serif text-4xl leading-tight tracking-[-0.03em]">
                 People are building <span className="italic text-[#b8512c]">amazing things.</span>
               </h2>
               <p className="mt-5 max-w-sm leading-7 text-[#5c584d]">
-                Here are a few projects that could use collaborators, thoughtful feedback, or a little momentum.
+                Here are a few active projects that could use collaborators, thoughtful feedback, or a little momentum.
               </p>
               <a href="https://app.openforproduct.com/projects" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#a84827] underline-offset-4 hover:underline">
                 Browse all projects <ArrowRight className="h-4 w-4" />
               </a>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {projects.map((project) => (
-                <article key={project.title} className="overflow-hidden rounded-2xl border border-[#dfd5c5] bg-[#fffaf2] shadow-[0_12px_36px_rgba(62,49,31,0.07)]">
-                  <ProjectVisual type={project.visual} />
-                  <div className="p-5">
-                    <h3 className="font-serif text-2xl">{project.title}</h3>
-                    <p className="mt-3 text-sm leading-6 text-[#5c584d]">{project.description}</p>
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                      <span className="inline-flex items-center gap-1 text-[#4f5f49]"><Users className="h-3.5 w-3.5" /> {project.collaborators}</span>
-                      <span className="rounded-full bg-[#ebe1cb] px-3 py-1 text-[#6a5c3f]">{project.category}</span>
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div>
+              <FeaturedProjectsWidget />
             </div>
           </div>
         </section>
