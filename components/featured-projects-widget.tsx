@@ -162,52 +162,68 @@ export function FeaturedProjectsWidget() {
     let isCurrent = true;
 
     async function loadFeaturedProjects() {
-      try {
-        const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
-        const endpoint = isLocal
-          ? "http://localhost:3001/api/public/featured-projects"
-          : "https://app.openforproduct.com/api/public/featured-projects";
+      // Build candidate endpoints to try in order:
+      const candidateEndpoints: string[] = [];
 
-        const res = await fetch(endpoint, {
-          headers: { Accept: "application/json" },
-        });
-
-        if (!res.ok) throw new Error("Fetch failed");
-        const data = await res.json();
-
-        if (isCurrent && data.success && Array.isArray(data.projects)) {
-          // Privacy guard: strictly reject any non-public or non-published projects
-          const safeProjects: FeaturedProject[] = data.projects.filter(
-            (p: any) =>
-              (!p.project_type || p.project_type === "public") &&
-              p.status !== "draft" &&
-              p.status !== "archived"
-          );
-
-          if (safeProjects.length > 0) {
-            let combined: FeaturedProject[] = [...safeProjects];
-            if (combined.length < 3) {
-              const existingNames = new Set(
-                combined.map((p) => (p.name || p.title || "").toLowerCase())
-              );
-              for (const fb of FALLBACK_PROJECTS) {
-                if (!existingNames.has(fb.title.toLowerCase())) {
-                  combined.push(fb);
-                  existingNames.add(fb.title.toLowerCase());
-                  if (combined.length >= 3) break;
-                }
-              }
-            }
-            setProjects(combined);
-            setIsLoading(false);
-            return;
-          }
-        }
-      } catch (err) {
-        console.debug("API fetch failed or returned no projects, using fallback:", err);
+      if (process.env.NEXT_PUBLIC_APP_URL) {
+        candidateEndpoints.push(`${process.env.NEXT_PUBLIC_APP_URL}/api/public/featured-projects`);
       }
 
-      // If API failed, returned no projects, or had an error -> fill fallback content
+      if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+        // If marketing is running on 3001, app is on 3000. If marketing is on 3000, app is on 3001.
+        const currentPort = window.location.port;
+        const targetAppPort = currentPort === "3001" ? "3000" : "3001";
+        candidateEndpoints.push(`http://localhost:${targetAppPort}/api/public/featured-projects`);
+        candidateEndpoints.push(`http://localhost:${currentPort === "3001" ? "3001" : "3000"}/api/public/featured-projects`);
+      }
+
+      // Always include production endpoint as fallback
+      candidateEndpoints.push("https://app.openforproduct.com/api/public/featured-projects");
+
+      for (const endpoint of candidateEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            headers: { Accept: "application/json" },
+          });
+
+          if (!res.ok) continue;
+          const data = await res.json();
+
+          if (isCurrent && data.success && Array.isArray(data.projects)) {
+            // Privacy guard: strictly reject any non-public or non-published projects
+            const safeProjects: FeaturedProject[] = data.projects.filter(
+              (p: any) =>
+                (!p.project_type || p.project_type === "public") &&
+                p.status !== "draft" &&
+                p.status !== "archived"
+            );
+
+            if (safeProjects.length > 0) {
+              let combined: FeaturedProject[] = [...safeProjects];
+              if (combined.length < 3) {
+                const existingNames = new Set(
+                  combined.map((p) => (p.name || p.title || "").toLowerCase())
+                );
+                for (const fb of FALLBACK_PROJECTS) {
+                  if (!existingNames.has(fb.title.toLowerCase())) {
+                    combined.push(fb);
+                    existingNames.add(fb.title.toLowerCase());
+                    if (combined.length >= 3) break;
+                  }
+                }
+              }
+              setProjects(combined);
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch {
+          // If this endpoint fails, try the next candidate
+          continue;
+        }
+      }
+
+      // If all endpoints failed, returned no projects, or had an error -> fill fallback content
       if (isCurrent) {
         setProjects(FALLBACK_PROJECTS);
         setIsLoading(false);
@@ -260,9 +276,12 @@ export function FeaturedProjectsWidget() {
                 ? project.contributionNeeds[0]
                 : `${project.memberCount || 1} collaborators`);
 
+            const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
+            const appPort = isLocal ? (window.location.port === "3001" ? "3000" : "3001") : "";
+            const appBase = isLocal ? `http://localhost:${appPort}` : `https://app.openforproduct.com`;
             const appUrl = project.urlPath
-              ? `https://app.openforproduct.com${project.urlPath}`
-              : `https://app.openforproduct.com/projects`;
+              ? `${appBase}${project.urlPath}`
+              : `${appBase}/projects`;
 
             return (
               <article
